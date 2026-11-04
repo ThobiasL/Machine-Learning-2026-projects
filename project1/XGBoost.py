@@ -44,7 +44,11 @@ x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
 cross_validation = KFold(n_splits=9, shuffle=True)
 
 # Setting up the XGBoost model with specified hyperparameters
+<<<<<<< Updated upstream:project1/XGBoost.py
 model = XGBRegressor(learning_rate=0.2 , max_depth=11, colsample_bytree=0.9, n_estimators=500)
+=======
+model = xgb.XGBRegressor(min_child_weight=0.1)
+>>>>>>> Stashed changes:code/XGBoost.py
 
 # Performing cross-validation using XGBoost
 validation_results = cross_validate(model, x_train, y_train, cv=cross_validation,

@@ -1,7 +1,11 @@
-import torch
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OrdinalEncoder
+import os
+import torch
+from torch import nn
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
 
 dataset = pd.read_csv(r"C:\Users\Gruppe3\Desktop\Machine-Learning-project1\dataset\flights_weather_dataset.csv")
 
@@ -38,7 +42,7 @@ train, validation = train_test_split(trainvalidation, test_size=0.25)
 # Removing the target columns from the features and creating separate target datasets
 target = ["DEP_DELAY_MIN", "ARR_DELAY_MIN"]
 
-
+'''
 # Evaluation module and printing results
 def evaluate(regressor, features, targets):
     predictions = regressor.predict(features)
@@ -57,3 +61,6 @@ def validate(regressor):
     print("-"*30)
     print('Validation results:')
     evaluate(regressor, validation_features, validation_target)
+'''
+device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+print(f"Using {device} device")
