@@ -63,7 +63,6 @@ def validate(regressor):
     evaluate(regressor, validation_features, validation_target)
 '''
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
-print(f"Using {device} device")
 
 class NeuralNetwork(nn.Module):
     def __init__(self):
@@ -83,6 +82,11 @@ class NeuralNetwork(nn.Module):
         return logits
 
 
-
 model = NeuralNetwork().to(device)
 print(model)
+
+X = torch.rand(1, 28, 28, device=device)
+logits = model(X)
+pred_probab = nn.Softmax(dim=1)(logits)
+y_pred = pred_probab.argmax(1)
+print(f"Predicted class: {y_pred}")
