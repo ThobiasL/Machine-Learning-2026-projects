@@ -1,11 +1,9 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OrdinalEncoder
-import os
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
 
 dataset = pd.read_csv(r"C:\Users\Gruppe3\Desktop\Machine-Learning-project1\dataset\flights_weather_dataset.csv")
 
@@ -42,51 +40,28 @@ train, validation = train_test_split(trainvalidation, test_size=0.25)
 # Removing the target columns from the features and creating separate target datasets
 target = ["DEP_DELAY_MIN", "ARR_DELAY_MIN"]
 
-'''
-# Evaluation module and printing results
-def evaluate(regressor, features, targets):
-    predictions = regressor.predict(features)
-    mae = mean_absolute_error(targets, predictions)
-    mse = mean_squared_error(targets, predictions)
-    r2 = r2_score(targets, predictions)
-
-    print(f'Mean Absolute Error: {mae:.2f}')
-    print(f'Mean Squared Error: {mse:.2f}')
-    print(f'R^2 Score: {r2:.2f}')
-
-# Validation module and printing results
-def validate(regressor):
-    print('Training results:')
-    evaluate(regressor, train_features, train_target)
-    print("-"*30)
-    print('Validation results:')
-    evaluate(regressor, validation_features, validation_target)
-'''
+# Setting the device to GPU if available, otherwise CPU
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 
 class NeuralNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, dataset, target, object_list):
         super().__init__()
-        self.flatten = nn.Flatten()
+        self.n_features = dataset.shape[1] - len(target) - len(object_list[0])  # Number of features excluding target columns
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(28*28, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 10),
+            nn.Linear(self.n_features, 512), nn.BatchNorm1d(512), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(512, 256), nn.BatchNorm1d(256), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(256, 128), nn.BatchNorm1d(128), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(128, 2),
         )
 
     def forward(self, x):
-        x = self.flatten(x)
         logits = self.linear_relu_stack(x)
         return logits
 
 
-model = NeuralNetwork().to(device)
+model = NeuralNetwork(dataset, target, object_list)
 print(model)
 
-X = torch.rand(1, 28, 28, device=device)
+X = torch.rand(1, model.n_features, device=device)
 logits = model(X)
-pred_probab = nn.Softmax(dim=1)(logits)
-y_pred = pred_probab.argmax(1)
-print(f"Predicted class: {y_pred}")
+print(f"Predicted class: {logits}")
