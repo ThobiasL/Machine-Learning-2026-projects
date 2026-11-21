@@ -70,9 +70,9 @@ class NeuralNetwork(nn.Module):
     def __init__(self, n_features):
         super().__init__()
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(n_features, 512), nn.BatchNorm1d(512), nn.ReLU(), nn.Dropout(0.1),
-            nn.Linear(512, 256), nn.BatchNorm1d(256), nn.ReLU(), nn.Dropout(0.1),
-            nn.Linear(256, 128), nn.BatchNorm1d(128), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(n_features, 512), nn.BatchNorm1d(512), nn.ReLU(),
+            nn.Linear(512, 256), nn.BatchNorm1d(256), nn.ReLU(),
+            nn.Linear(256, 128), nn.BatchNorm1d(128), nn.ReLU(),
             nn.Linear(128, 2),
         )
 
@@ -100,11 +100,11 @@ def train_model(x_train, y_train):
 
 
 # Predicting in large chunks so the GPU doesn't run out of memory
-def predict(model, x_ev):
+def predict(model, x_evaluate):
     model.eval()
     with torch.no_grad():
-        return torch.cat([model(x_ev[i:i + 65536].to(device)).cpu()
-                          for i in range(0, len(x_ev), 65536)]).numpy()
+        return torch.cat([model(x_evaluate[i:i + 65536].to(device)).cpu()
+                          for i in range(0, len(x_evaluate), 65536)]).numpy()
 
 
 # Scaling, training and scoring, with the scalers fitted on the training part only
@@ -124,7 +124,6 @@ results = []
 for fold, (train_idx, val_idx) in enumerate(cross_validation.split(x_train), start=1):
     _, scores = fit_and_score(x_train.iloc[train_idx], y_train.iloc[train_idx],
                               x_train.iloc[val_idx], y_train.iloc[val_idx])
-    print(f"Fold {fold}: MAE {scores['MAE']:.2f} | MSE {scores['MSE']:.2f} | R^2 {scores['R2']:.2f}")
     results.append(scores)
 
 # Printing the results of the cross-validation
