@@ -1,10 +1,9 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split, KFold, cross_validate
+from sklearn.model_selection import train_test_split, KFold
 from sklearn.preprocessing import OrdinalEncoder, StandardScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
-
 
 dataset = pd.read_csv(r"C:\Users\Gruppe3\Desktop\Machine-Learning-project1\dataset\flights_weather_dataset.csv")
 
