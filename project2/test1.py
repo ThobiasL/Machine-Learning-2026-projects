@@ -33,11 +33,8 @@ encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
 for col in object_list[2]:
     dataset[col] = encoder.fit_transform(dataset[[col]])
 
-dataset.info()
 # Dropping the rows with NaN values
 dataset = dataset.dropna()
-#dataset = dataset.dropna(subset=["Requested FL", "dep_cloud_base_m"])
-dataset.info()
 
 # removing the target columns from the features and creating separate target  variable
 target = ["DEP_DELAY_MIN", "ARR_DELAY_MIN"]
@@ -56,10 +53,6 @@ if torch.accelerator.is_available():
 else:
     device = "cpu"
 print("Device:", device)
-
-EPOCHS = 10
-BATCH_SIZE = 4096
-
 
 # Converting a numpy array into a tensor
 def to_tensor(data):
@@ -81,15 +74,15 @@ class NeuralNetwork(nn.Module):
 
 
 # Training a brand-new network on one set of training data
-def train_model(x_train, y_train):
+def train_model(x_train, y_train, learning_rate=1e-3, epochs=10, batch_size=4096):
     model = NeuralNetwork(x_train.shape[1]).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     loss_fn = nn.HuberLoss()
-    for epoch in range(EPOCHS):
+    for epoch in range(epochs):
         model.train()
         order = torch.randperm(len(x_train))
-        for start in range(0, len(order), BATCH_SIZE):
-            batch = order[start:start + BATCH_SIZE]
+        for start in range(0, len(order), batch_size):
+            batch = order[start:start + batch_size]
             if len(batch) < 2:      # BatchNorm1d can't train on a single row
                 continue
             optimizer.zero_grad()
