@@ -58,7 +58,7 @@ for col in categorical_columns:
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
 
 # Setting up K for the folds in the cross-validation
-cross_validation = KFold(n_splits=3, shuffle=True)
+cross_validation = KFold(n_splits=9, shuffle=True)
 
 # Setting the device to GPU if available (CUDA or Intel XPU), otherwise CPU
 if torch.accelerator.is_available():
@@ -93,7 +93,7 @@ class NeuralNetwork(nn.Module):
 
 
 # Training a brand-new network on one set of training data
-def train_model(x_numeric, x_category, y_train, learning_rate=4e-3, epochs=25, batch_size=2048):
+def train_model(x_numeric, x_category, y_train, learning_rate=1e-2, epochs=25, batch_size=2048):
     model = NeuralNetwork(x_numeric.shape[1], category_sizes).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-5)
     loss_fn = nn.HuberLoss(delta=1.0)
@@ -153,11 +153,11 @@ print(f"Mean Squared Error: {validation_result['MSE']:.2f}")
 print(f"R^2 Score: {validation_result['R2']:.2f}")
 print("-" * 30)
 
-'''
+
 # Training on all the training data and evaluating on the test data
-model, test_scores = fit_and_score(x_train, y_train, x_test, y_test, loss_function=loss_function)
+model, test_scores = fit_and_score(x_train, y_train, x_test, y_test)
 print("Test results:")
 print(f"Mean Absolute Error: {test_scores['MAE']:.2f}")
 print(f"Mean Squared Error: {test_scores['MSE']:.2f}")
 print(f"R^2 Score: {test_scores['R2']:.2f}")
-'''
+
