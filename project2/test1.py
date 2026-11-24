@@ -76,8 +76,8 @@ class NeuralNetwork(nn.Module):
 # Training a brand-new network on one set of training data
 def train_model(x_train, y_train, learning_rate=4e-3, epochs=25, batch_size=2048):
     model = NeuralNetwork(x_train.shape[1]).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
-    loss_fn = nn.HuberLoss(delta=2)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+    loss_fn = nn.HuberLoss(delta=1.0)
     for epoch in range(epochs):
         model.train()
         order = torch.randperm(len(x_train))
