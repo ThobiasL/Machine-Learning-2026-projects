@@ -41,6 +41,19 @@ target = ["DEP_DELAY_MIN", "ARR_DELAY_MIN"]
 x = dataset.drop(columns=target, axis=1)
 y = dataset[target]
 
+categorical_columns = object_list[2]
+# All the other columns are normal numbers
+numeric_columns = []
+for col in x.columns:
+    if col not in categorical_columns:
+        numeric_columns.append(col)
+
+# Counting how many categories each category column has.
+category_sizes = []
+for col in categorical_columns:
+    highest_code = int(x[col].max())
+    category_sizes.append(highest_code + 1)
+
 # Splitting the dataset into train 80% and test 20%
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
 
@@ -60,8 +73,13 @@ def to_tensor(data):
 
 
 class NeuralNetwork(nn.Module):
-    def __init__(self, n_features):
+    def __init__(self, n_numeric, category_sizes):
         super().__init__()
+        # One embedding per category column: a small learned list of numbers per category
+        self.embeddings = nn.ModuleList(
+            [nn.Embedding(size, min(32, (size + 1) // 2)) for size in category_sizes])
+        n_features = n_numeric + sum(embedding.embedding_dim for embedding in self.embeddings)
+
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(n_features, 512), nn.BatchNorm1d(512), nn.ReLU(),
             nn.Linear(512, 256), nn.BatchNorm1d(256), nn.ReLU(),
@@ -69,43 +87,51 @@ class NeuralNetwork(nn.Module):
             nn.Linear(128, 2),
         )
 
-    def forward(self, x):
-        return self.linear_relu_stack(x)
+    def forward(self, x_numeric, x_category):
+        embedded = [embedding(x_category[:, i]) for i, embedding in enumerate(self.embeddings)]
+        return self.linear_relu_stack(torch.cat([x_numeric] + embedded, dim=1))
 
 
 # Training a brand-new network on one set of training data
-def train_model(x_train, y_train, learning_rate=4e-3, epochs=25, batch_size=2048):
-    model = NeuralNetwork(x_train.shape[1]).to(device)
+def train_model(x_numeric, x_category, y_train, learning_rate=4e-3, epochs=25, batch_size=2048):
+    model = NeuralNetwork(x_numeric.shape[1], category_sizes).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-5)
     loss_fn = nn.HuberLoss(delta=1.0)
     for epoch in range(epochs):
         model.train()
-        order = torch.randperm(len(x_train))
+        order = torch.randperm(len(x_numeric))
         for start in range(0, len(order), batch_size):
             batch = order[start:start + batch_size]
             if len(batch) < 2:      # BatchNorm1d can't train on a single row
                 continue
             optimizer.zero_grad()
-            loss = loss_fn(model(x_train[batch].to(device)), y_train[batch].to(device))
+            prediction = model(x_numeric[batch].to(device), x_category[batch].to(device))
+            loss = loss_fn(prediction, y_train[batch].to(device))
             loss.backward()
             optimizer.step()
     return model
 
 
 # Predicting in large chunks so the GPU doesn't run out of memory
-def predict(model, x_evaluate):
+def predict(model, x_numeric, x_category):
     model.eval()
     with torch.no_grad():
-        return torch.cat([model(x_evaluate[i:i + 65536].to(device)).cpu()
-                          for i in range(0, len(x_evaluate), 65536)]).numpy()
+        return torch.cat([model(x_numeric[i:i + 65536].to(device), x_category[i:i + 65536].to(device)).cpu()
+                          for i in range(0, len(x_numeric), 65536)]).numpy()
 
 
 # Scaling, training and scoring, with the scalers fitted on the training part only
-def fit_and_score(x_train, y_train, x_evaluate, y_evaluate):
-    x_scaler = StandardScaler().fit(x_train)
+def fit_and_score(x_train, y_train, x_evaluate, y_evaluate, ):
+    x_scaler = StandardScaler().fit(x_train[numeric_columns])
     y_scaler = StandardScaler().fit(y_train)
-    model = train_model(to_tensor(x_scaler.transform(x_train)), to_tensor(y_scaler.transform(y_train)),)
-    pred = y_scaler.inverse_transform(predict(model, to_tensor(x_scaler.transform(x_evaluate))))
+
+    # Numeric columns are scaled, category columns stay as whole-number codes
+    def make_inputs(part):
+        return (to_tensor(x_scaler.transform(part[numeric_columns])),
+                torch.tensor(part[categorical_columns].to_numpy(), dtype=torch.long))
+
+    model = train_model(*make_inputs(x_train), to_tensor(y_scaler.transform(y_train)))
+    pred = y_scaler.inverse_transform(predict(model, *make_inputs(x_evaluate)))
     scores = {"MAE": mean_absolute_error(y_evaluate, pred),
               "MSE": mean_squared_error(y_evaluate, pred),
               "R2": r2_score(y_evaluate, pred)}
